@@ -30,27 +30,29 @@ void MnemonicCheck(const v8::FunctionCallbackInfo<Value>& args) {
 }
 
 void GetInfoCb(uv_work_t *work_req, int status) {
+    Nan::HandleScope scope;
+
     json_request_t *req = (json_request_t *) work_req->data;
 
-    v8::Persistent<Object> *persistent = (v8::Persistent<Object> *) req->handle;
+    Nan::Callback *callback = (Nan::Callback*)req->handle;
 
-    Nan::EscapableHandleScope scope;
-    v8::Local<v8::Value> x = scope.Escape(New(*persistent)->Get(New("cb").ToLocalChecked()));
-    v8::Local<Function> cb = Local<Function>::Cast(x);
+    //v8::Persistent<Object> *persistent = (v8::Persistent<Object> *) req->handle;
+
+    //v8::Local<v8::Value> x = scope.Escape(New(*persistent)->Get(New("cb").ToLocalChecked()));
+    //v8::Local<Function> cb = Local<Function>::Cast(x);
 
     const char *result_str = json_object_to_json_string(req->response);
 
     // XXX
-    Isolate *isolate = Isolate::GetCurrent();
 
     printf("json: %s\n", result_str);
 
-    // const unsigned argc = 1;
-    // Local<Value> argv[argc] = {
-    //     New("cb").ToLocalChecked()
-    // };
+    Local<Value> argv[] = {
+        Nan::Null(),
+        Nan::New<Number>(3)
+    };
 
-    // cb->Call(Null(isolate), argc, argv);
+    callback->Call(2, argv);
     free(req);
     free(work_req);
 }
@@ -58,10 +60,7 @@ void GetInfoCb(uv_work_t *work_req, int status) {
 void GetInfo(const v8::FunctionCallbackInfo<Value>& args) {
   Isolate *isolate = args.GetIsolate();
 
-  v8::Local<v8::Object> obj = New<v8::Object>();
-  v8::Persistent<v8::Object> persistentHandle;
-  persistentHandle.Reset(Isolate::GetCurrent(), obj);
-  obj->Set(New("cb").ToLocalChecked(), args[0]);
+  Nan::Callback *callback = new Nan::Callback(args[0].As<Function>());
 
   storj_bridge_options_t bridge_options = {};
   bridge_options.proto = "https";
@@ -88,7 +87,7 @@ void GetInfo(const v8::FunctionCallbackInfo<Value>& args) {
                                     &log_options);
 
   env->loop = uv_default_loop();
-  storj_bridge_get_info(env, (void *) &persistentHandle, GetInfoCb);
+  storj_bridge_get_info(env, (void *) callback, GetInfoCb);
 }
 
 void init(Handle<Object> exports) {
