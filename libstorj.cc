@@ -36,20 +36,11 @@ void GetInfoCb(uv_work_t *work_req, int status) {
 
     Nan::Callback *callback = (Nan::Callback*)req->handle;
 
-    //v8::Persistent<Object> *persistent = (v8::Persistent<Object> *) req->handle;
-
-    //v8::Local<v8::Value> x = scope.Escape(New(*persistent)->Get(New("cb").ToLocalChecked()));
-    //v8::Local<Function> cb = Local<Function>::Cast(x);
-
     const char *result_str = json_object_to_json_string(req->response);
-
-    // XXX
-
-    printf("json: %s\n", result_str);
 
     Local<Value> argv[] = {
         Nan::Null(),
-        Nan::New<Number>(3)
+        Nan::New(result_str).ToLocalChecked()
     };
 
     callback->Call(2, argv);
