@@ -30,76 +30,65 @@ void MnemonicCheck(const v8::FunctionCallbackInfo<Value>& args) {
 }
 
 void GetInfoCb(uv_work_t *work_req, int status) {
-    printf("in cb\n");
     json_request_t *req = (json_request_t *) work_req->data;
 
-    printf("5\n");
-    v8::Persistent<v8::Object> *persistentHandle = (v8::Persistent<v8::Object>*) req->handle;
-    //v8::FunctionCallbackInfo<Value>& args = (v8::FunctionCallbackInfo<Value>&) *req->handle;
+    v8::Persistent<Object> *persistent = (v8::Persistent<Object> *) req->handle;
 
-    Local<Function> cb = Local<Function>::Cast(New(*persistentHandle)->Get(New("cb").ToLocalChecked()));
-    printf("6\n");
-/*    const char *result_str = json_object_to_json_string(req->response);
+    Nan::EscapableHandleScope scope;
+    v8::Local<v8::Value> x = scope.Escape(New(*persistent)->Get(New("cb").ToLocalChecked()));
+    v8::Local<Function> cb = Local<Function>::Cast(x);
 
-    const unsigned argc = 1;
-    Local<Value> argv[argc] = {
-      v8::JSON::Parse(String::NewFromUtf8(isolate, result_str))
-    };
+    const char *result_str = json_object_to_json_string(req->response);
 
+    // XXX
+    Isolate *isolate = Isolate::GetCurrent();
 
-    cb->Call(Null(isolate), argc, argv);*/
+    printf("json: %s\n", result_str);
+
+    // const unsigned argc = 1;
+    // Local<Value> argv[argc] = {
+    //     New("cb").ToLocalChecked()
+    // };
+
+    // cb->Call(Null(isolate), argc, argv);
     free(req);
     free(work_req);
 }
 
 void GetInfo(const v8::FunctionCallbackInfo<Value>& args) {
-  printf("1\n");
   Isolate *isolate = args.GetIsolate();
-  printf("1.1\n");
-  //v8::Persistent<v8::Object> *persistentHandle;
-  printf("1.2\n");
+
   v8::Local<v8::Object> obj = New<v8::Object>();
-  printf("1.3\n");
-  v8::Persistent<Object> persistentHandle = v8::Persistent<Object>::New( Isolate::GetCurrent(), *obj );
-  //persistentHandle->Reset(isolate, obj);
-  printf("1.4\n");
-  New(persistentHandle).Set(New("cb").ToLocalChecked(), args[0]);
+  v8::Persistent<v8::Object> persistentHandle;
+  persistentHandle.Reset(Isolate::GetCurrent(), obj);
+  obj->Set(New("cb").ToLocalChecked(), args[0]);
 
-  printf("2\n");
-  storj_bridge_options_t bridge_options = {
-      .proto = "https",
-      .host  = "api.storj.io",
-      .port  = 443,
-      .user  = "testuser@storj.io",
-      .pass  = "dce18e67025a8fd68cab186e196a9f8bcca6c9e4a7ad0be8a6f5e48f3abd1b04"
-  };
+  storj_bridge_options_t bridge_options = {};
+  bridge_options.proto = "https";
+  bridge_options.host  = "api.storj.io";
+  bridge_options.port  = 443;
+  bridge_options.user  = "testuser@storj.io";
+  bridge_options.pass  = "dce18e67025a8fd68cab186e196a9f8bcca6c9e4a7ad0be8a6f5e48f3abd1b04";
 
+  storj_encrypt_options_t encrypt_options = {};
+  encrypt_options.mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-  storj_encrypt_options_t encrypt_options = {
-      .mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-  };
+  storj_http_options_t http_options = {};
+  http_options.user_agent = "storj-test";
+  http_options.low_speed_limit = 0;
+  http_options.low_speed_time = 0;
+  http_options.timeout = 3;
 
-  storj_http_options_t http_options = {
-      .user_agent = "storj-test",
-      .low_speed_limit = 0,
-      .low_speed_time = 0,
-      .timeout = 3
-  };
-
-  storj_log_options_t log_options = {
-      .level = 0
-  };
+  storj_log_options_t log_options = {};
+  log_options.level = 0;
 
   storj_env_t *env = storj_init_env(&bridge_options,
                                     &encrypt_options,
                                     &http_options,
                                     &log_options);
 
-  printf("3\n");
   env->loop = uv_default_loop();
   storj_bridge_get_info(env, (void *) &persistentHandle, GetInfoCb);
-
-  printf("hello\n");
 }
 
 void init(Handle<Object> exports) {
